@@ -1,0 +1,14 @@
+<!-- Supabase → Authentication → Emails → Templates → "Magic Link"
+     Assunto sugerido: Seu link de acesso ao Pedidinho
+     Cole TODO este conteúdo no corpo do e-mail. -->
+<div style="font-family: Arial, Helvetica, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #2b211d;">
+  <h2 style="margin: 0 0 16px;">Seu link de acesso chegou 🎉</h2>
+  <p style="font-size: 16px; line-height: 1.5;">Clique no botão abaixo para entrar no seu painel do Pedidinho. Não precisa de senha.</p>
+  <p style="margin: 28px 0;">
+    <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/painel"
+       style="background: #c2381e; color: #ffffff; padding: 14px 24px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">
+      Entrar no meu painel
+    </a>
+  </p>
+  <p style="font-size: 13px; color: #6b5d57; line-height: 1.5;">O link vale por 1 hora e só pode ser usado uma vez. Se você não pediu este acesso, pode ignorar este e-mail.</p>
+</div>
