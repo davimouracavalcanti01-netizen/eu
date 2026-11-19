@@ -43,3 +43,10 @@ https://docs.kiwify.com.br/api-reference/webhooks/subscription-events.md (consul
 ## Em aberto
 - A documentação de webhooks NÃO detalha o objeto `Customer` (onde vem o e-mail).
   Confirmar com um payload real de "Testar Webhook" → "Ver logs" antes de implementar.
+
+## Decisões de negócio (confirmadas pelo dono do produto)
+- Compra aprovada / renovação paga → ativa; `current_period_end` = `Subscription.customer_access.access_until`.
+- Atraso (`subscription_late`) → inativa NA HORA.
+- Reembolso (`order_refunded`) e chargeback (`chargeback`) → inativa NA HORA.
+- Cancelamento (`subscription_canceled`) → continua ativa ATÉ O FIM do período pago
+  (`access_until`); depois disso fica inativa automaticamente.
