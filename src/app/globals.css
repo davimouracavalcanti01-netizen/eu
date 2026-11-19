@@ -73,3 +73,21 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Impressão da plaquinha de QR Code: só a área marcada aparece. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: absolute;
+    inset: 0 auto auto 50%;
+    transform: translateX(-50%);
+    margin-top: 2cm;
+    box-shadow: none;
+  }
+}

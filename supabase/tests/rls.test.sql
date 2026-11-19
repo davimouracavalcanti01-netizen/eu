@@ -277,5 +277,49 @@ begin
 end $$;
 reset role;
 
+\echo '14. Cancelada: ativa até o fim do período pago, depois inativa'
+update public.subscriptions set status = 'active', access_ends_at = now() + interval '5 days'
+  where email = 'caio@example.com';
+set role anon;
+do $$
+begin
+  assert (public.get_public_store('bolos-do-caio')->>'active')::boolean, 'cancelada no prazo deveria continuar ativa';
+end $$;
+reset role;
+update public.subscriptions set access_ends_at = now() - interval '1 minute'
+  where email = 'caio@example.com';
+set role anon;
+do $$
+begin
+  assert not (public.get_public_store('bolos-do-caio')->>'active')::boolean, 'cancelada vencida deveria ficar inativa';
+end $$;
+reset role;
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000c';
+set role authenticated;
+do $$
+declare n int;
+begin
+  update public.products set price_cents = 1 where id = '30000000-0000-0000-0000-00000000000c';
+  get diagnostics n = row_count;
+  assert n = 0, 'cancelada vencida não pode editar';
+end $$;
+reset role;
+
+\echo '15. Horários: Ana troca os dela, mas não os da Bia'
+set request.jwt.claim.sub = '00000000-0000-0000-0000-00000000000a';
+set role authenticated;
+do $$
+begin
+  perform public.replace_store_hours('10000000-0000-0000-0000-00000000000a',
+    '[{"weekday":1,"opens_at":"09:00","closes_at":"18:00"},{"weekday":5,"opens_at":"18:00","closes_at":"02:00"}]');
+  assert (select count(*) from public.store_hours) = 2, 'deveria ter 2 horários';
+  begin
+    perform public.replace_store_hours('10000000-0000-0000-0000-00000000000b', '[]');
+    raise exception 'FALHA: Ana trocou horários da Bia';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+reset role;
+
 \echo ''
 \echo 'OK: todos os testes de banco passaram.'

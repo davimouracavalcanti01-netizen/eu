@@ -41,6 +41,9 @@ create table public.subscriptions (
   kiwify_subscription_id text,
   kiwify_order_id        text,
   current_period_end     timestamptz,
+  -- Preenchido quando a assinatura é cancelada: o acesso continua até esta
+  -- data (fim do período já pago) e depois a loja fica inativa sozinha.
+  access_ends_at         timestamptz,
   last_event_type        text,
   last_event_at          timestamptz,
   created_at             timestamptz not null default now(),
@@ -55,9 +58,9 @@ create trigger subscriptions_updated_at
   before update on public.subscriptions
   for each row execute function public.set_updated_at();
 
--- Retorna true se o usuário logado tem assinatura ativa.
--- SECURITY DEFINER para poder ser usada dentro de policies de outras tabelas.
-create or replace function public.has_active_subscription()
+-- Regra única de "assinatura ativa": status ativo E (sem data de término OU
+-- data de término no futuro). Usada em todas as policies e funções.
+create or replace function public.subscription_is_active(p_user_id uuid)
 returns boolean
 language sql
 stable
@@ -67,9 +70,22 @@ as $$
   select exists (
     select 1
     from public.subscriptions s
-    where s.user_id = (select auth.uid())
+    where s.user_id = p_user_id
       and s.status = 'active'
+      and (s.access_ends_at is null or s.access_ends_at > now())
   );
+$$;
+
+-- Retorna true se o usuário logado tem assinatura ativa.
+-- SECURITY DEFINER para poder ser usada dentro de policies de outras tabelas.
+create or replace function public.has_active_subscription()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select public.subscription_is_active((select auth.uid()));
 $$;
 
 -- -----------------------------------------------------------------------------
@@ -102,7 +118,8 @@ create table public.stores (
     'dashboard', 'termos', 'privacidade', 'precos', 'preco', 'planos', 'ajuda',
     'suporte', 'contato', 'blog', 'www', 'static', 'assets', 'public', 'loja',
     'lojas', 'cadastro', 'assinar', 'checkout', 'webhook', 'webhooks', 'pedidinho',
-    'sobre', 'faq', 'favicon', 'robots', 'sitemap', 'manifest', 'conta', 'config'
+    'sobre', 'faq', 'favicon', 'robots', 'sitemap', 'manifest', 'conta', 'config',
+    'demo', 'exemplo', 'teste', 'images', 'img', '_next'
   )),
   constraint stores_name_len check (char_length(name) between 2 and 60),
   constraint stores_description_len check (description is null or char_length(description) <= 200),
@@ -393,10 +410,7 @@ begin
     return null;
   end if;
 
-  select exists (
-    select 1 from public.subscriptions s
-    where s.user_id = v_store.owner_id and s.status = 'active'
-  ) into v_active;
+  v_active := public.subscription_is_active(v_store.owner_id);
 
   if not v_active then
     return jsonb_build_object(
@@ -470,8 +484,8 @@ begin
 
   select st.id into v_store_id
   from public.stores st
-  join public.subscriptions s on s.user_id = st.owner_id and s.status = 'active'
-  where st.slug = lower(p_slug);
+  where st.slug = lower(p_slug)
+    and public.subscription_is_active(st.owner_id);
 
   if v_store_id is null then
     return false;
@@ -506,6 +520,30 @@ as $$
   );
 $$;
 
+-- Substitui todos os horários da loja de uma vez (atômico).
+-- SECURITY INVOKER: roda com as permissões do usuário, então o RLS vale.
+create or replace function public.replace_store_hours(p_store_id uuid, p_hours jsonb)
+returns void
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if jsonb_typeof(p_hours) <> 'array' or jsonb_array_length(p_hours) > 21 then
+    raise exception 'Lista de horários inválida';
+  end if;
+  if not public.owns_store(p_store_id) then
+    raise exception 'Loja não encontrada' using errcode = '42501';
+  end if;
+
+  delete from public.store_hours where store_id = p_store_id;
+
+  insert into public.store_hours (store_id, weekday, opens_at, closes_at)
+  select p_store_id, (h->>'weekday')::smallint, (h->>'opens_at')::time, (h->>'closes_at')::time
+  from jsonb_array_elements(p_hours) as h;
+end;
+$$;
+
 -- Busca o id de um usuário pelo e-mail (usado pelo webhook). Só service_role.
 create or replace function public.get_user_id_by_email(p_email text)
 returns uuid
@@ -521,14 +559,18 @@ $$;
 revoke execute on function public.get_public_store(text)        from public;
 revoke execute on function public.track_store_event(text, text) from public;
 revoke execute on function public.is_slug_available(text)       from public;
+revoke execute on function public.replace_store_hours(uuid, jsonb) from public;
 revoke execute on function public.has_active_subscription()     from public;
+revoke execute on function public.subscription_is_active(uuid)  from public, anon, authenticated;
 revoke execute on function public.owns_store(uuid)              from public;
 revoke execute on function public.get_user_id_by_email(text)    from public, anon, authenticated;
 
 grant execute on function public.get_public_store(text)        to anon, authenticated;
 grant execute on function public.track_store_event(text, text) to anon, authenticated;
 grant execute on function public.is_slug_available(text)       to authenticated;
+grant execute on function public.replace_store_hours(uuid, jsonb) to authenticated;
 grant execute on function public.has_active_subscription()     to authenticated;
+grant execute on function public.subscription_is_active(uuid)  to service_role;
 grant execute on function public.owns_store(uuid)              to authenticated;
 grant execute on function public.get_user_id_by_email(text)    to service_role;
 
