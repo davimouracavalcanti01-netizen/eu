@@ -13,3 +13,9 @@ export function publicImageUrl(path: string | null | undefined): string | null {
 export function isOwnMediaPath(path: string, userId: string, folder: "products" | "logo"): boolean {
   return new RegExp(`^${userId}/${folder}/[a-zA-Z0-9-]{8,64}\\.(webp|jpg|jpeg|png)$`).test(path);
 }
+
+/** Foto de produto: imagens da loja demo ficam em /public/demo; as demais no Storage. */
+export function productImageUrl(path: string | null | undefined): string | null {
+  if (path?.startsWith("demo:")) return `/demo/${path.slice(5)}.svg`;
+  return publicImageUrl(path);
+}
