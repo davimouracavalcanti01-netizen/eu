@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "test:db": "bash scripts/test-db.sh",
     "typecheck": "tsc --noEmit",
-    "acesso": "node --env-file=.env.local scripts/conceder-acesso.mjs"
+    "acesso": "node --env-file=.env.local scripts/conceder-acesso.mjs",
+    "webhook:simular": "node --env-file=.env.local scripts/simular-webhook.mjs"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.17",

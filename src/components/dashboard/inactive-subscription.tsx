@@ -14,7 +14,7 @@ export function InactiveSubscription({ checkoutUrl, supportEmail }: { checkoutUr
           <span className="text-2xl">Assinatura inativa</span>
         </CardTitle>
         <CardDescription className="text-base">
-          Sua loja está fora do ar para os clientes no momento. Mas fique tranquila: <strong>todos os seus
+          Sua loja está fora do ar para os clientes no momento. Mas não se preocupe: <strong>todos os seus
           produtos, fotos e configurações continuam salvos</strong>.
         </CardDescription>
       </CardHeader>
