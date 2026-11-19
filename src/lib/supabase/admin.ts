@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
-import { publicEnv, serverEnv } from "@/lib/env";
+import { publicEnv } from "@/lib/env";
+import { serverEnv } from "@/lib/env.server";
 
 /**
  * Cliente Supabase com a chave SECRETA (ignora RLS).

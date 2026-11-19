@@ -55,17 +55,28 @@ export const DEMO_SLUG = "demo";
 export async function getPublicStore(slug: string): Promise<PublicStoreResult> {
   "use cache";
   cacheTag(`store:${slug}`);
-  cacheLife("hours");
 
-  if (slug === DEMO_SLUG) return DEMO_STORE;
-  if (!/^[a-z0-9-]{3,40}$/.test(slug)) return null;
+  if (slug === DEMO_SLUG) {
+    cacheLife("max");
+    return DEMO_STORE;
+  }
+  if (!/^[a-z0-9-]{3,40}$/.test(slug)) {
+    cacheLife("max");
+    return null;
+  }
 
   const supabase = createPublicClient();
   const { data, error } = await supabase.rpc("get_public_store", { p_slug: slug });
   if (error) throw new Error(`Falha ao carregar a loja: ${error.message}`);
-  if (!data) return null;
+  if (!data) {
+    // "Não encontrada" fica pouco tempo em cache: se a loja for criada,
+    // o link passa a funcionar sozinho (além da limpeza imediata pelo painel).
+    cacheLife("minutes");
+    return null;
+  }
 
   const parsed = publicStoreSchema.safeParse(data);
   if (!parsed.success) throw new Error("Resposta inesperada ao carregar a loja");
+  cacheLife("hours");
   return parsed.data;
 }

@@ -6,7 +6,7 @@ import { z } from "zod";
  * - `publicEnv`: pode ser usada no navegador (prefixo NEXT_PUBLIC_).
  *   Cada variável precisa ser lida de forma literal (process.env.NEXT_PUBLIC_X)
  *   para o Next.js conseguir embuti-la no código do navegador.
- * - `serverEnv()`: segredos. Só pode ser chamada no servidor.
+ * Segredos ficam em `env.server.ts` (nunca vão para o navegador).
  *
  * Veja `.env.example` para a explicação de cada variável.
  */
@@ -19,21 +19,9 @@ const publicSchema = z.object({
   NEXT_PUBLIC_SUPPORT_EMAIL: z.email(),
 });
 
-const serverSchema = z.object({
-  SUPABASE_SECRET_KEY: z.string().min(20),
-  KIWIFY_WEBHOOK_TOKEN: z.string().min(16, "Use um token longo (16+ caracteres)"),
-  // Opcional: token antigo, aceito durante a troca de token (ver README).
-  KIWIFY_WEBHOOK_TOKEN_PREVIOUS: z.string().optional(),
-  RESEND_API_KEY: z.string().startsWith("re_"),
-  EMAIL_FROM: z.string().min(5),
-  // Opcional: para onde vão os alertas de erro do webhook (padrão: e-mail de suporte).
-  ALERT_EMAIL: z.email().optional(),
-});
-
 export type PublicEnv = z.infer<typeof publicSchema>;
-export type ServerEnv = z.infer<typeof serverSchema>;
 
-function formatIssues(error: z.ZodError) {
+export function formatIssues(error: z.ZodError) {
   return error.issues.map((i) => `  - ${i.path.join(".")}: ${i.message}`).join("\n");
 }
 
@@ -54,27 +42,4 @@ export function publicEnv(): PublicEnv {
   }
   cachedPublic = parsed.data;
   return cachedPublic;
-}
-
-let cachedServer: ServerEnv | undefined;
-export function serverEnv(): ServerEnv {
-  if (typeof window !== "undefined") {
-    throw new Error("serverEnv() não pode ser usada no navegador");
-  }
-  if (cachedServer) return cachedServer;
-  const parsed = serverSchema.safeParse({
-    SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY,
-    KIWIFY_WEBHOOK_TOKEN: process.env.KIWIFY_WEBHOOK_TOKEN,
-    KIWIFY_WEBHOOK_TOKEN_PREVIOUS: process.env.KIWIFY_WEBHOOK_TOKEN_PREVIOUS || undefined,
-    RESEND_API_KEY: process.env.RESEND_API_KEY,
-    EMAIL_FROM: process.env.EMAIL_FROM,
-    ALERT_EMAIL: process.env.ALERT_EMAIL || undefined,
-  });
-  if (!parsed.success) {
-    throw new Error(
-      `Variáveis de ambiente do servidor inválidas ou ausentes (confira o .env.example):\n${formatIssues(parsed.error)}`,
-    );
-  }
-  cachedServer = parsed.data;
-  return cachedServer;
 }

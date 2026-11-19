@@ -1,5 +1,5 @@
 import "server-only";
-import { serverEnv } from "@/lib/env";
+import { serverEnv } from "@/lib/env.server";
 
 /** Envia um e-mail pela API HTTP do Resend (https://resend.com/docs/api-reference/emails/send-email). */
 export async function sendEmail(input: { to: string; subject: string; html?: string; text: string; replyTo?: string }) {

@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-24.04
+    env:
+      # Valores fictícios só para o build (nenhum segredo real aqui).
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPPORT_EMAIL: suporte@example.com
+      NEXT_PUBLIC_SUPABASE_URL: https://exemplo.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_exemplo_para_build
+      NEXT_PUBLIC_KIWIFY_CHECKOUT_URL: https://pay.kiwify.com.br/exemplo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Testes de segurança do banco (RLS)
+        run: npm run test:db
+      - run: npm run build
